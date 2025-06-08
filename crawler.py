@@ -2,8 +2,16 @@
 import requests
 from fake_useragent import UserAgent
 from concurrent.futures import ThreadPoolExecutor
+from html_checker import is_charged_by_html
+
 
 ua = UserAgent()
+
+def is_charge(bvid):
+    """
+    判断视频是否为充电视频，调用 html_checker 的 is_charged_by_html 方法。
+    """
+    return is_charged_by_html(bvid)
 
 def get_video_info(bv):
     url = f"https://api.bilibili.com/x/web-interface/view?bvid={bv}"
@@ -13,11 +21,7 @@ def get_video_info(bv):
         res = requests.get(url, headers=headers, timeout=5)
         data = res.json()["data"]
         # 判断是否充电
-        is_charged = (
-            data.get("ugc_pay", {}).get("pay_type", {}).get("ugc_pay", False)
-            or data.get("ugc_pay", {}).get("is_preview", False)
-            or "no_permission" in res.text
-        )
+        is_charged = is_charge(bv)
 
         print(f"🔍 {bv} → charged = {int(is_charged)}")
         

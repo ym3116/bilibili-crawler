@@ -18,7 +18,7 @@ def is_charged_by_html(bvid):
     driver = webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=options)
     driver.get(url)
 
-    time.sleep(5)  # 等页面加载弹窗
+    time.sleep(10)  # 等页面加载弹窗
 
     html = driver.page_source
     driver.quit()

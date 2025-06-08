@@ -4,7 +4,7 @@ from fake_useragent import UserAgent
 import json
 from html_checker import is_charged_by_html
 
-bv = "BV1Ls7PzeEE1"  # 替换为你想测试的 BV号
+bv = "BV1wQjEzEEEU"  # 替换为你想测试的 BV号
 ua = UserAgent()
 url = f"https://api.bilibili.com/x/web-interface/view?bvid={bv}"
 headers = {"User-Agent": ua.random}
