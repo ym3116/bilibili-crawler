@@ -1,3 +1,7 @@
 # Ignore testing Chrome browser
 chrome-mac-arm64/
 chromedriver-mac-arm64/
+# Ignore csv, txt, and json files
+*.csv
+*.txt
+*.json
