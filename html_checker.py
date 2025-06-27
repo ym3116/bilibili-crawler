@@ -36,3 +36,4 @@ def is_charged_by_html(bvid):
         print(f"✅ BV号 {bvid} 是免费视频")
 
     return is_charged
+
