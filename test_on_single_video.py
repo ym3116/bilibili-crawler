@@ -3,12 +3,21 @@ import requests
 from fake_useragent import UserAgent
 import json
 from html_checker import is_charged_by_html
+import time
 
+start_time = time.time()
 bv = "BV1wQjEzEEEU"  # 替换为你想测试的 BV号
 ua = UserAgent()
 url = f"https://api.bilibili.com/x/web-interface/view?bvid={bv}"
 headers = {"User-Agent": ua.random}
+is_charged_html = is_charged_by_html(bv)
 
+print(f"🧪 HTML 判断结果 → is_charged: {is_charged_html}")
+# print execution time
+print(f"⏱️ Execution time: {time.time() - start_time:.2f} seconds")
+
+
+"""
 # 发请求获取 JSON 数据
 res = requests.get(url, headers=headers)
 print(f"✅ HTTP status: {res.status_code}")
@@ -42,3 +51,4 @@ try:
 except Exception as e:
     print("❌ JSON解析失败：", e)
     print("⚠️ 响应内容前500字符如下：\n", res.text[:500])
+"""

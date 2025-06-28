@@ -5,3 +5,6 @@ chromedriver-mac-arm64/
 *.csv
 *.txt
 *.json
+
+# Ignore test files
+test_on_single_video.py

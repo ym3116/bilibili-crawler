@@ -4,7 +4,6 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from config import CHROME_BINARY_PATH, CHROMEDRIVER_PATH
 import time, re
-from html_checker import is_charged_by_html
 
 def get_bv_list(keyword="食贫道", scroll_times=5):
     options = Options()
