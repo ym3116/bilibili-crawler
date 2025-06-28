@@ -1,61 +1,63 @@
-# get bv_list.py, call crawler.py to get video info and store it in a csv
+import json
+import time
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from config import CHROME_BINARY_PATH, CHROMEDRIVER_PATH
-import time, re
+from selenium.webdriver.chrome.service import Service
+import pandas as pd
+from crawler import get_all_info
+from html_checker import is_charged_video
 
-def get_bv_list(keyword="食贫道", scroll_times=5):
-    options = Options()
-    options.binary_location = CHROME_BINARY_PATH
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
+# ✅ 从 config.json 中读取关键词和页数
+with open("config.json", "r", encoding="utf-8") as f:
+    config = json.load(f)
 
-    driver = webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=options)
-    url = f"https://search.bilibili.com/all?keyword={keyword}"
+keyword = config.get("keyword", "")
+max_pages = config.get("max_pages", 5)
+
+# ✅ 启动 Selenium（无头模式）
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--window-size=1920,1080")
+driver = webdriver.Chrome(options=chrome_options)
+
+bv_set = set()
+for page in range(1, max_pages + 1):
+    print(f"🔍 Crawling page {page}...")
+    url = f"https://search.bilibili.com/all?keyword={keyword}&page={page}"
     driver.get(url)
-    time.sleep(3)
+    time.sleep(2)
+    try:
+        items = driver.find_elements(By.XPATH, '//a[@href]')
+        for item in items:
+            href = item.get_attribute("href")
+            if href and "BV" in href:
+                parts = href.split("BV")
+                for p in parts[1:]:
+                    if len(p) >= 10:
+                        bv_id = "BV" + p[:10]
+                        bv_set.add(bv_id)
+    except Exception as e:
+        print(f"❌ Failed on page {page}: {e}")
 
-    bv_set = set()
-    for i in range(scroll_times):
-        print(f"📜 Scrolling page {i+1}/{scroll_times} ...")
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
-        html = driver.page_source
-        found = re.findall(r'BV[0-9A-Za-z]{10}', html)
-        bv_set.update(found)
-        print(f"🔍 Found {len(found)} BVs in this round.")
+driver.quit()
+bv_list = list(bv_set)
+print(f"✅ Found {len(bv_list)} BV IDs")
 
-    driver.quit()
-    print(f"✅ Total unique BV IDs collected: {len(bv_set)}")
-    return list(bv_set)
+# ✅ 用 API 获取主数据
+video_info_list = get_all_info(bv_list)
 
-if __name__ == "__main__":
-    bv_list = get_bv_list(keyword="食贫道", scroll_times=6)
-    # (Optional) Save BV list to local file
-    with open("bv_list.txt", "w") as f:
-        for bv in bv_list:
-            f.write(bv + "\n")
-    print("📁 BV list saved to bv_list.txt")
-    
-    
-    # ======== call crawler.py to get video info ========
-    
-    from crawler import get_all_info
-    import pandas as pd
+# ✅ 用 html_checker 添加更准确的 is_charged 标签
+for video in video_info_list:
+    try:
+        video["is_charged_html"] = is_charged_video(video["bv"])
+        print(f"🔎 {video['bv']} charged_html = {video['is_charged_html']}")
+    except Exception as e:
+        print(f"⚠️ Failed to check charge status for {video['bv']}: {e}")
+        video["is_charged_html"] = None
 
-    # 读取 BV 列表
-    with open("bv_list.txt", "r") as f:
-        bv_list = [line.strip() for line in f if line.strip()]
-
-    print(f"🚀 Total BV IDs to process: {len(bv_list)}")
-
-    # 多线程抓取视频信息
-    data = get_all_info(bv_list)
-
-    # 保存为 CSV
-    df = pd.DataFrame(data)
-    df.to_csv("bilibili_video_info.csv", index=False, encoding='utf-8-sig')
-    print("✅ Saved video info to bilibili_video_info.csv")
-
+# ✅ 存储到 CSV
+df = pd.DataFrame(video_info_list)
+df.to_csv("bilibili_video_info.csv", index=False, encoding="utf-8-sig")
+print("✅ Saved to bilibili_video_info.csv")
