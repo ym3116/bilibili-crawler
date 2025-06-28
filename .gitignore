@@ -1,10 +1,18 @@
 # Ignore testing Chrome browser
 chrome-mac-arm64/
 chromedriver-mac-arm64/
+
+# Ignore virtual environment directories
+venv/
+
 # Ignore csv, txt, and json files
 *.csv
 *.txt
 *.json
 
-# Ignore test files
-test_on_single_video.py
+# Ignore datafiles
+data/
+
+# Ignore configuration files
+crawler/config.py
+crawler/test_on_single_video.py

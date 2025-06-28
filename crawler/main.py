@@ -6,9 +6,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from concurrent.futures import ThreadPoolExecutor
-from config import CONFIG, CHROME_BINARY_PATH, CHROMEDRIVER_PATH
-from crawler import get_video_info
-from html_checker import is_charged_video
+from crawler.config import CONFIG, CHROME_BINARY_PATH, CHROMEDRIVER_PATH
+from crawler.crawler import get_video_info
+from crawler.html_checker import is_charged_video
 
 # Load config values
 keyword = CONFIG["keyword"]

@@ -3,7 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import time
-from config import CHROME_BINARY_PATH, CHROMEDRIVER_PATH
+from crawler.config import CHROME_BINARY_PATH, CHROMEDRIVER_PATH
 # charge_utils.py
 import requests
 
