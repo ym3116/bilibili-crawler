@@ -7,7 +7,7 @@ from config import CHROME_BINARY_PATH, CHROMEDRIVER_PATH
 # charge_utils.py
 import requests
 
-def is_charged_video(bv, fast_mode=False):
+def is_charged_video(bv, fast_mode=True):
     """
     判断 B 站视频是否为“专属/充电”内容
     - fast_mode=True: 用 requests 抓 html，关键词判断（推荐）
@@ -24,7 +24,7 @@ def is_charged_video(bv, fast_mode=False):
             raise Exception("请求失败")
 
         html = res.text
-        keywords = ["试看", "专属视频", "大会员", "开通", "试看中", "专享"]
+        keywords = ["专属视频", "试看中", "充电专属"]
 
         for kw in keywords:
             if kw in html:

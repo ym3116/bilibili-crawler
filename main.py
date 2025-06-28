@@ -1,63 +1,75 @@
-import json
+import re
 import time
+import csv
+from pathlib import Path
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-import pandas as pd
-from crawler import get_all_info
+from concurrent.futures import ThreadPoolExecutor
+from config import CONFIG, CHROME_BINARY_PATH, CHROMEDRIVER_PATH
+from crawler import get_video_info
 from html_checker import is_charged_video
 
-# ✅ 从 config.json 中读取关键词和页数
-with open("config.json", "r", encoding="utf-8") as f:
-    config = json.load(f)
+# Load config values
+keyword = CONFIG["keyword"]
+max_pages = CONFIG["max_pages"]
+scroll_times = CONFIG["max_scroll_times"]
+output_csv = CONFIG["output_csv"]
+max_threads = CONFIG["max_threads"]
 
-keyword = config.get("keyword", "")
-max_pages = config.get("max_pages", 5)
-
-# ✅ 启动 Selenium（无头模式）
-chrome_options = Options()
-chrome_options.add_argument("--headless")
-chrome_options.add_argument("--disable-gpu")
-chrome_options.add_argument("--window-size=1920,1080")
-driver = webdriver.Chrome(options=chrome_options)
+# Set up Selenium with custom Chrome
+options = Options()
+options.binary_location = CHROME_BINARY_PATH
+options.add_argument("--headless")
+options.add_argument("--disable-gpu")
+service = Service(executable_path=CHROMEDRIVER_PATH)
+driver = webdriver.Chrome(service=service, options=options)
 
 bv_set = set()
+
+print(f"🔍 Crawling keyword: {keyword}, pages: {max_pages}")
 for page in range(1, max_pages + 1):
-    print(f"🔍 Crawling page {page}...")
     url = f"https://search.bilibili.com/all?keyword={keyword}&page={page}"
     driver.get(url)
-    time.sleep(2)
-    try:
-        items = driver.find_elements(By.XPATH, '//a[@href]')
-        for item in items:
-            href = item.get_attribute("href")
-            if href and "BV" in href:
-                parts = href.split("BV")
-                for p in parts[1:]:
-                    if len(p) >= 10:
-                        bv_id = "BV" + p[:10]
-                        bv_set.add(bv_id)
-    except Exception as e:
-        print(f"❌ Failed on page {page}: {e}")
+
+    for i in range(scroll_times):
+        print(f"📜 Scrolling page {page}, scroll {i+1}/{scroll_times} ...")
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
+        html = driver.page_source
+        found = re.findall(r'BV[0-9A-Za-z]{10}', html)
+        bv_set.update(found)
+        print(f"🔍 Found {len(found)} BVs in this round.")
+
+    print(f"✅ Page {page}: Total unique BVs collected so far: {len(bv_set)}")
 
 driver.quit()
-bv_list = list(bv_set)
-print(f"✅ Found {len(bv_list)} BV IDs")
+print(f"📦 Total BV IDs collected: {len(bv_set)}")
 
-# ✅ 用 API 获取主数据
-video_info_list = get_all_info(bv_list)
+# Get basic video info
+video_info_list = []
+for bv in bv_set:
+    info = get_video_info(bv)
+    if info:
+        video_info_list.append(info)
 
-# ✅ 用 html_checker 添加更准确的 is_charged 标签
-for video in video_info_list:
-    try:
-        video["is_charged_html"] = is_charged_video(video["bv"])
-        print(f"🔎 {video['bv']} charged_html = {video['is_charged_html']}")
-    except Exception as e:
-        print(f"⚠️ Failed to check charge status for {video['bv']}: {e}")
-        video["is_charged_html"] = None
+# Add is_charged_video using threads
+def enrich_with_charge_status(video):
+    bv = video["bv"]
+    charged = is_charged_video(bv)
+    video["is_charged"] = int(charged)
+    print(f"🔎 {bv} charged = {charged}")
+    return video
 
-# ✅ 存储到 CSV
-df = pd.DataFrame(video_info_list)
-df.to_csv("bilibili_video_info.csv", index=False, encoding="utf-8-sig")
-print("✅ Saved to bilibili_video_info.csv")
+print("🚀 Checking charge status using threads...")
+with ThreadPoolExecutor(max_workers=max_threads) as executor:
+    video_info_list = list(executor.map(enrich_with_charge_status, video_info_list))
+
+# Save results to CSV
+csv_file = Path(output_csv)
+with open(csv_file, "w", newline="", encoding="utf-8-sig") as f:
+    writer = csv.DictWriter(f, fieldnames=video_info_list[0].keys())
+    writer.writeheader()
+    writer.writerows(video_info_list)
+
+print(f"✅ Exported {len(video_info_list)} records to {csv_file.resolve()}")
