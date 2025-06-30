@@ -9,6 +9,20 @@ To download them:
 
 Place the files under root and name them `chrome-mac-arm64/` and `chromedriver-mac-arm64/` accordingly.
 
+## Craw Data
+
+```bash
+    python crawler/main.py 
+```  
+it saves bilibili_video_info.csv in data/raw
+
+## 🛠 Data Processing
+
+```bash
+python analysis/process_video_data.py
+```
+
+
 ## 📁 Project Structure
 
 ```
