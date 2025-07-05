@@ -1,7 +1,7 @@
 import requests
 from fake_useragent import UserAgent
 from concurrent.futures import ThreadPoolExecutor
-from crawler.config import CONFIG
+from config import CONFIG
 
 ua = UserAgent()
 
