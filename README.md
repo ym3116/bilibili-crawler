@@ -14,7 +14,8 @@ Place the files under root and name them `chrome-mac-arm64/` and `chromedriver-m
 ```bash
 python crawler/main.py 
 ```  
-it saves bilibili_video_info.csv in data/raw
+it saves FILENAME.csv in data/raw
+can change name, save route and choose crawling method in config.py
 
 ## 🛠 Data Processing
 

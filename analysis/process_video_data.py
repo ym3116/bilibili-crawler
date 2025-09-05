@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 
 # Paths
-RAW_PATH = Path("data/raw/bilibili_video_info.csv")
+RAW_PATH = Path("data/raw/8个up主_keyword.csv")
 PROCESSED_DIR = Path("data/processed")
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -24,5 +24,5 @@ df["year_month"] = df["pub_datetime"].dt.to_period("M").astype(str)
 
 # Save processed version
 df.to_parquet(PROCESSED_DIR / "processed_videos.parquet", index=False)
-#df.to_csv("data/processed/processed_videos.csv", index=False)
+df.to_csv("data/processed/processed_videos.csv", index=False)
 print("✅ Data processed and saved.")

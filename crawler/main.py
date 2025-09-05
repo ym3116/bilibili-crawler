@@ -1,21 +1,21 @@
 import re
 import time
 import csv
+import requests
 from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from concurrent.futures import ThreadPoolExecutor
-from crawler.config import CONFIG, CHROME_BINARY_PATH, CHROMEDRIVER_PATH
-from crawler.crawler import get_video_info
-from crawler.html_checker import is_charged_video
+from config import KEYWORDS, UPLOADER_LIST, CRAWL_PARAMS, CHROME_BINARY_PATH, CHROMEDRIVER_PATH, CRAWL_MODE
+from crawler import get_video_info
+#from html_checker import is_charged_video
 
 # Load config values
-keyword = CONFIG["keyword"]
-max_pages = CONFIG["max_pages"]
-scroll_times = CONFIG["max_scroll_times"]
-output_csv = CONFIG["output_csv"]
-max_threads = CONFIG["max_threads"]
+max_pages = CRAWL_PARAMS["max_pages"]
+scroll_times = CRAWL_PARAMS["max_scroll_times"]
+output_csv = CRAWL_PARAMS["output_csv"]
+max_threads = CRAWL_PARAMS["max_threads"]
 
 # Set up Selenium with custom Chrome
 options = Options()
@@ -27,45 +27,65 @@ driver = webdriver.Chrome(service=service, options=options)
 
 bv_set = set()
 
-print(f"🔍 Crawling keyword: {keyword}, pages: {max_pages}")
-for page in range(1, max_pages + 1):
-    url = f"https://search.bilibili.com/all?keyword={keyword}&page={page}"
-    driver.get(url)
+if CRAWL_MODE == "keyword":
+    print("🔍 Running in KEYWORD mode...")
 
-    for i in range(scroll_times):
-        print(f"📜 Scrolling page {page}, scroll {i+1}/{scroll_times} ...")
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
-        html = driver.page_source
-        found = re.findall(r'BV[0-9A-Za-z]{10}', html)
-        bv_set.update(found)
-        print(f"🔍 Found {len(found)} BVs in this round.")
+    for keyword in KEYWORDS:
+        print(f"🔍 Crawling keyword: {keyword}, pages: {max_pages}")
+        for page in range(1, max_pages + 1):
+            url = f"https://search.bilibili.com/all?keyword={keyword}&page={page}"
+            driver.get(url)
 
-    print(f"✅ Page {page}: Total unique BVs collected so far: {len(bv_set)}")
+            for i in range(scroll_times):
+                print(f"📜 Scrolling page {page}, scroll {i+1}/{scroll_times} ...")
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+                html = driver.page_source
+                found = re.findall(r'BV[0-9A-Za-z]{10}', html)
+                bv_set.update(found)
+                print(f"🔍 Found {len(found)} BVs in this round.")
+
+            print(f"✅ Page {page}: Total unique BVs collected so far: {len(bv_set)}")
+
+
+elif CRAWL_MODE == "mid":
+    print("🔍 Running in MID mode...")
+
+    for uploader in UPLOADER_LIST:
+        name = uploader["name"]
+        mid = uploader["mid"]
+        print(f"👤 Fetching videos for {name} (mid={mid})")
+
+        for page in range(1, max_pages + 1):
+            url = f"https://api.bilibili.com/x/space/wbi/arc/search?mid={mid}&pn={page}&ps=30&order=pubdate"
+            headers = {"User-Agent": "Mozilla/5.0"}
+            try:
+                res = requests.get(url, headers=headers, timeout=5)
+                res.raise_for_status()
+                data = res.json()
+                vlist = data["data"]["list"]["vlist"]
+                if not vlist:
+                    break
+                for video in vlist:
+                    bv_set.add(video["bvid"])
+                print(f"📥 Page {page}: Collected {len(vlist)} videos for {name}")
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"❌ Error on page {page} for {name} (mid={mid}): {e}")
+                break
+
 
 driver.quit()
 print(f"📦 Total BV IDs collected: {len(bv_set)}")
 
-# Get basic video info
+# start exporting to CSV
 video_info_list = []
 for bv in bv_set:
     info = get_video_info(bv)
     if info:
         video_info_list.append(info)
 
-# Add is_charged_video using threads
-def enrich_with_charge_status(video):
-    bv = video["bv"]
-    charged = is_charged_video(bv)
-    video["is_charged"] = int(charged)
-    print(f"🔎 {bv} charged = {charged}")
-    return video
 
-print("🚀 Checking charge status using threads...")
-with ThreadPoolExecutor(max_workers=max_threads) as executor:
-    video_info_list = list(executor.map(enrich_with_charge_status, video_info_list))
-
-# Save results to CSV
 csv_file = Path(output_csv)
 with open(csv_file, "w", newline="", encoding="utf-8-sig") as f:
     writer = csv.DictWriter(f, fieldnames=video_info_list[0].keys())
